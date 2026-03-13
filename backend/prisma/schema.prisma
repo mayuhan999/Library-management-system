@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  MEMBER
+  LIBRARIAN
+  ADMIN
+}
+
+enum LoanStatus {
+  BORROWED
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+enum HoldStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  BORROW
+  RETURN
+  APPROVE
+  REJECT
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         UserRole    @default(MEMBER)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  loans        Loan[]
+  ratings      Rating[]
+  holds        Hold[]
+  wishlists    Wishlist[]
+  auditLogs    AuditLog[]
+
+  @@index([fullName])
+}
+
+model Book {
+  id              String      @id @default(cuid())
+  isbn            String      @unique
+  title           String
+  author          String
+  publisher       String?
+  publishedYear   Int?
+  category        String?
+  description     String?
+  language        String?
+  shelfLocation   String?
+  coverImageUrl   String?
+  totalCopies     Int         @default(1)
+  availableCopies Int         @default(1)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  loans           Loan[]
+  ratings         Rating[]
+  holds           Hold[]
+  wishlists       Wishlist[]
+
+  @@index([title])
+  @@index([author])
+  @@index([category])
+}
+
+model Loan {
+  id          String     @id @default(cuid())
+  userId      String
+  bookId      String
+  borrowedAt  DateTime   @default(now())
+  dueAt       DateTime
+  returnedAt  DateTime?
+  status      LoanStatus @default(BORROWED)
+  fineAmount  Float      @default(0)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  book        Book       @relation(fields: [bookId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([bookId, status])
+  @@index([dueAt])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([bookId, score])
+}
+
+model Hold {
+  id           String     @id @default(cuid())
+  userId       String
+  bookId       String
+  status       HoldStatus @default(ACTIVE)
+  queuePosition Int?
+  placedAt     DateTime   @default(now())
+  expiresAt    DateTime?
+  fulfilledAt  DateTime?
+  cancelledAt  DateTime?
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book         Book       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId, status, placedAt])
+  @@index([userId, status])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  notes     String?
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@index([userId, priority])
+}
+
+model Config {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId     String?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
