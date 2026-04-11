@@ -1,3 +1,162 @@
+/* 图书馆学生端：白蓝主色下的布局与卡片 */
+.library-app {
+  text-align: left;
+  width: 100%;
+}
+
+.library-auth-screen {
+  display: flex;
+  min-height: calc(100svh - 2rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.25rem 3.5rem;
+}
+
+.library-auth-card {
+  width: 100%;
+  max-width: 32rem;
+  border-radius: calc(var(--radius) + 4px);
+  border: 1px solid oklch(0.91 0.035 250);
+  background: oklch(1 0.002 250);
+  box-shadow:
+    oklch(0.55 0.1 264 / 0.07) 0 4px 24px -6px,
+    oklch(0.55 0.06 264 / 0.05) 0 2px 8px -4px;
+  padding: 3rem 2.5rem 3.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.library-auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    oklch(0.55 0.18 250),
+    oklch(0.58 0.16 264),
+    oklch(0.52 0.14 230)
+  );
+}
+
+/* Override global index.css h1 (56px / huge margins) so auth titles don’t overlap */
+.library-auth-card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.library-auth-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.library-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.library-brand > div {
+  min-width: 0;
+}
+
+.library-auth-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  margin-bottom: 2rem;
+}
+
+/* Catalog / borrow: spacious data table */
+.library-table-wrap {
+  overflow-x: auto;
+  margin-inline: -0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .library-table-wrap {
+    margin-inline: 0;
+  }
+}
+
+.library-data-table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9375rem;
+}
+
+.library-data-table thead th {
+  padding: 1rem 1.35rem 0.875rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.45 0.04 264);
+  border-bottom: 1px solid oklch(0.9 0.03 250);
+  background: oklch(0.97 0.02 250);
+}
+
+.library-data-table tbody td {
+  padding: 1.2rem 1.35rem;
+  vertical-align: middle;
+  border-bottom: 1px solid oklch(0.93 0.02 250);
+}
+
+.library-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.library-data-table tbody tr:hover td {
+  background: oklch(0.985 0.015 250);
+}
+
+.library-brand-icon {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 2px);
+  background: linear-gradient(
+    145deg,
+    oklch(0.52 0.18 264),
+    oklch(0.45 0.16 250)
+  );
+  color: oklch(0.99 0 0);
+  font-size: 1.15rem;
+  font-weight: 600;
+  box-shadow: oklch(0.5 0.15 264 / 0.25) 0 4px 12px -2px;
+}
+
+.library-panel {
+  border-radius: calc(var(--radius) + 2px);
+  border: 1px solid oklch(0.92 0.03 250);
+  background: oklch(1 0.003 250 / 0.92);
+  box-shadow: oklch(0.55 0.08 264 / 0.06) 0 2px 16px -4px;
+}
+
+.library-list {
+  border-radius: calc(var(--radius) + 2px);
+  border: 1px solid oklch(0.91 0.03 250);
+  background: oklch(1 0.002 250);
+  box-shadow: oklch(0.55 0.06 264 / 0.05) 0 1px 12px -4px;
+  overflow: hidden;
+}
+
+.library-list a:hover {
+  background: oklch(0.97 0.04 250);
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
