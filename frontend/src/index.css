@@ -6,19 +6,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 原有自定义全局样式（全部保留） */
+/* 图书馆学生端：白 + 蓝主色（浅色主题） */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: oklch(0.922 0 0);
-  --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --text: oklch(0.42 0.04 264);
+  --text-h: oklch(0.28 0.06 264);
+  --bg: oklch(0.99 0.012 250);
+  --border: oklch(0.91 0.03 250);
+  --code-bg: oklch(0.96 0.03 250);
+  --accent: oklch(0.55 0.16 264);
+  --accent-bg: oklch(0.94 0.05 250);
+  --accent-border: oklch(0.72 0.1 264);
+  --social-bg: oklch(0.96 0.04 250);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    oklch(0.55 0.08 264 / 0.08) 0 10px 28px -8px,
+    oklch(0.55 0.06 264 / 0.06) 0 4px 12px -4px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -26,7 +27,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -38,65 +39,68 @@
     font-size: 16px;
   }
 
-  --background: oklch(1 0 0);
+  /* shadcn / Tailwind 语义色：白底 + 蓝色主按钮与焦点环 */
+  --background: oklch(0.995 0.008 250);
 
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.28 0.055 264);
 
-  --card: oklch(1 0 0);
+  --card: oklch(1 0.004 250);
 
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.28 0.055 264);
 
-  --popover: oklch(1 0 0);
+  --popover: oklch(1 0.004 250);
 
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.28 0.055 264);
 
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.47 0.19 264);
 
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.99 0.002 250);
 
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.95 0.035 250);
 
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: oklch(0.32 0.08 264);
 
-  --muted: oklch(0.97 0 0);
+  --muted: oklch(0.965 0.025 250);
 
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.48 0.04 264);
 
-  --accent-foreground: oklch(0.205 0 0);
+  --accent-foreground: oklch(0.32 0.08 264);
 
-  --destructive: oklch(0.577 0.245 27.325);
+  --accent: oklch(0.94 0.045 250);
 
-  --input: oklch(0.922 0 0);
+  --destructive: oklch(0.52 0.2 25);
 
-  --ring: oklch(0.708 0 0);
+  --input: oklch(0.93 0.025 250);
 
-  --chart-1: oklch(0.809 0.105 251.813);
+  --ring: oklch(0.58 0.14 264);
 
-  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-1: oklch(0.62 0.18 264);
 
-  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-2: oklch(0.58 0.14 240);
 
-  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-3: oklch(0.54 0.12 230);
 
-  --chart-5: oklch(0.424 0.199 265.638);
+  --chart-4: oklch(0.5 0.1 220);
 
-  --radius: 0.625rem;
+  --chart-5: oklch(0.46 0.09 210);
 
-  --sidebar: oklch(0.985 0 0);
+  --radius: 0.75rem;
 
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.99 0.01 250);
 
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.28 0.055 264);
 
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.47 0.19 264);
 
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-primary-foreground: oklch(0.99 0.002 250);
 
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.95 0.035 250);
 
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-accent-foreground: oklch(0.32 0.08 264);
 
-  --sidebar-ring: oklch(0.708 0 0)
+  --sidebar-border: oklch(0.91 0.03 250);
+
+  --sidebar-ring: oklch(0.58 0.14 264);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -121,18 +125,27 @@
 
 body {
   margin: 0;
+  min-height: 100svh;
+  background: linear-gradient(
+    165deg,
+    oklch(0.96 0.04 250) 0%,
+    oklch(0.99 0.015 250) 38%,
+    oklch(1 0.005 250) 100%
+  );
+  background-attachment: fixed;
 }
 
 #root {
-  width: 1126px;
+  width: min(1126px, 100%);
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  padding: 0 1rem 2rem;
+  border-inline: none;
 }
 
 h1,
@@ -258,7 +271,8 @@ code {
 @layer base {
   * {
     @apply border-border outline-ring/50;}
+  /* 页面背景由上方 body 的浅蓝渐变承担，此处不再铺纯色以免盖住渐变 */
   body {
-    @apply bg-background text-foreground;}
+    @apply text-foreground;}
   html {
     @apply font-sans;}}
