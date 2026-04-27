@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../lib/prisma');
+const { getMinPasswordLength } = require('../lib/libraryRules');
 const { requireAuth, getJwtSecret } = require('../middleware/auth');
 
 const router = express.Router();
@@ -30,12 +31,13 @@ router.post('/register', async (req, res) => {
   const { email, password, fullName } = req.body || {};
   const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   const name = typeof fullName === 'string' ? fullName.trim() : '';
+  const minLen = await getMinPasswordLength();
 
   if (!trimmedEmail || !password || !name) {
     return res.status(400).json({ error: 'Email, password, and full name are required' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length < minLen) {
+    return res.status(400).json({ error: `Password must be at least ${minLen} characters` });
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
     return res.status(400).json({ error: 'Invalid email format' });
@@ -60,8 +62,10 @@ router.post('/register', async (req, res) => {
   return res.status(201).json({ token, user: publicUser(user) });
 });
 
+const INTENT_ROLES = new Set(['MEMBER', 'LIBRARIAN', 'ADMIN']);
+
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, intentRole } = req.body || {};
   const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
   if (!trimmedEmail || !password) {
@@ -79,6 +83,17 @@ router.post('/login', async (req, res) => {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
     return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  if (intentRole != null && intentRole !== '') {
+    if (!INTENT_ROLES.has(intentRole)) {
+      return res.status(400).json({ error: 'Invalid login portal' });
+    }
+    if (user.role !== intentRole) {
+      return res.status(403).json({
+        error: 'This account does not match the selected portal. Choose the correct sign-in page.',
+      });
+    }
   }
 
   await prisma.auditLog.create({

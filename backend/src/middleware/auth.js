@@ -20,4 +20,14 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, getJwtSecret };
+/** @param {import('@prisma/client').UserRole[]} allowed */
+function requireRole(allowed) {
+  return (req, res, next) => {
+    if (!req.userRole || !allowed.includes(req.userRole)) {
+      return res.status(403).json({ error: 'You do not have permission for this action' });
+    }
+    next();
+  };
+}
+
+module.exports = { requireAuth, requireRole, getJwtSecret };

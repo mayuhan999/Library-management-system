@@ -128,5 +128,8 @@ Week 1-12 SPM Course Project
 2. **写入演示数据：** 在 `backend` 目录执行 `npm run seed`。  
 3. **启动后端：** `cd backend` → `npm run dev`（默认 `http://localhost:3001`）。  
 4. **启动前端：** `cd frontend` → `npm run dev`（默认 `http://localhost:5173`）。  
+5. **手工验收：** 使用演示学生账号或自行注册 → 浏览 `/books` → 搜索关键词（如书名、作者）→ 打开任意图书详情。
 
+### 6. 本周问题与处理（可补充）
 
+- （待填）联调、跨域、令牌过期体验等可在后续 Sprint 继续优化。

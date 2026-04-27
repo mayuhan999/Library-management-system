@@ -12,14 +12,13 @@ export function BorrowAvailability({
     <span
       className={cn(
         'font-semibold tabular-nums',
-        ok ? 'text-emerald-600' : 'text-red-600',
+        ok ? 'text-[#0d7a4f]' : 'text-[#b42318]',
         className,
       )}
     >
       {detailed ? (
         <>
-          {ok ? 'Available' : 'Unavailable'} · {available} / {total}{' '}
-          {total === 1 ? 'copy' : 'copies'}
+          {ok ? 'Available' : 'Unavailable'} · {available} / {total} {total === 1 ? 'copy' : 'copies'}
         </>
       ) : (
         <>
