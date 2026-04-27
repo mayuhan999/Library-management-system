@@ -36,31 +36,17 @@ export function RegisterPage() {
   }
 
   const inputClass =
-    'border-input bg-background ring-offset-background focus:border-primary/50 focus-visible:ring-ring w-full rounded-md border px-3 py-2.5 text-sm outline-none transition-colors focus-visible:ring-2'
+    'w-full rounded-sm border border-[#d0d5dd] bg-white px-3 py-2.5 text-sm text-[#1a2b3c] outline-none transition focus:border-[#003366] focus:ring-1 focus:ring-[#6b8cae]'
 
   return (
-    <div className="library-auth-screen library-app">
-      <div className="library-auth-card">
-        <div className="library-brand">
-          <span className="library-brand-icon shrink-0 text-base" aria-hidden>
-            L
-          </span>
-          <div className="space-y-1">
-            <p className="text-muted-foreground text-xs font-medium tracking-wide">
-              Library Management System
-            </p>
-            <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-              Student registration
-            </h1>
-          </div>
-        </div>
-        <div className="library-auth-intro text-muted-foreground text-sm leading-relaxed">
-          <p>Your role will be Student (MEMBER).</p>
-          <p>You can browse and search the catalog after signing up.</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="b-app min-h-svh bg-[#f5f5f5] px-4 py-12">
+      <div className="mx-auto w-full max-w-[420px] rounded-sm border border-[#e5e8eb] bg-white p-8 shadow-sm">
+        <h1 className="text-xl font-semibold text-[#003366]">Reader registration</h1>
+        <p className="mt-1 text-sm text-[#5c6b7a]">New accounts are readers (MEMBER): search, borrow, and place holds.</p>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="reg-name">
+            <label className="mb-1 block text-xs font-medium text-[#3d4f5f]" htmlFor="reg-name">
               Full name
             </label>
             <input
@@ -74,7 +60,7 @@ export function RegisterPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="reg-email">
+            <label className="mb-1 block text-xs font-medium text-[#3d4f5f]" htmlFor="reg-email">
               Email
             </label>
             <input
@@ -88,7 +74,7 @@ export function RegisterPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="reg-password">
+            <label className="mb-1 block text-xs font-medium text-[#3d4f5f]" htmlFor="reg-password">
               Password (at least 6 characters)
             </label>
             <input
@@ -102,20 +88,18 @@ export function RegisterPage() {
             />
           </div>
           {error ? (
-            <p className="text-destructive text-sm leading-relaxed" role="alert">
+            <p className="text-sm text-[#b42318]" role="alert">
               {error}
             </p>
           ) : null}
-          <Button type="submit" className="w-full font-bold" disabled={pending}>
+          <Button type="submit" className="h-10 w-full" disabled={pending}>
             {pending ? 'Submitting…' : 'Register and sign in'}
           </Button>
         </form>
-        <p className="text-muted-foreground mt-10 text-center text-sm leading-relaxed">
+
+        <p className="mt-6 text-center text-xs text-[#5c6b7a]">
           Already have an account?{' '}
-          <Link
-            to="/login"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
+          <Link to="/login" className="font-medium text-[#003366] underline-offset-2 hover:underline">
             Sign in
           </Link>
         </p>

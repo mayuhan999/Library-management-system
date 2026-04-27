@@ -36,9 +36,32 @@ const userSeedDefs = [
     fullName: "Student Two",
     role: "MEMBER",
   },
+  {
+    email: "student3@library.local",
+    password: "student123",
+    fullName: "Student Three",
+    role: "MEMBER",
+  },
+  {
+    email: "student4@library.local",
+    password: "student123",
+    fullName: "Student Four",
+    role: "MEMBER",
+  },
+  {
+    email: "student5@library.local",
+    password: "student123",
+    fullName: "Student Five",
+    role: "MEMBER",
+  },
 ];
 
 const categories = ["技术", "小说", "科学", "历史", "管理"];
+
+/** Random integer in [min, max] inclusive. */
+function randomInt(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
 
 const books = [
   // 技术
@@ -217,10 +240,21 @@ async function main() {
     throw new Error("Book categories are not fully covered.");
   }
 
+  const memberEmails = [
+    "student1@library.local",
+    "student2@library.local",
+    "student3@library.local",
+    "student4@library.local",
+    "student5@library.local",
+  ];
+  const memberUsers = memberEmails.map((e) => usersByEmail[e]);
+
   const createdBooks = [];
   for (let i = 0; i < books.length; i += 1) {
     const book = books[i];
-    const isAvailable = i < 15;
+    const totalCopies = randomInt(2, 5);
+    const shelfOnly = i < 15;
+    const availableCopies = shelfOnly ? totalCopies : 0;
     const created = await prisma.book.create({
       data: {
         isbn: book.isbn,
@@ -229,29 +263,28 @@ async function main() {
         category: book.category,
         description: book.description,
         language: "zh-Hans",
-        totalCopies: 1,
-        availableCopies: isAvailable ? 1 : 0,
+        totalCopies,
+        availableCopies,
       },
     });
-    createdBooks.push(created);
+    createdBooks.push({ created, shelfOnly, totalCopies });
   }
 
-  const borrowedBooks = createdBooks.slice(15);
-  const borrowers = [
-    usersByEmail["student1@library.local"],
-    usersByEmail["student2@library.local"],
-  ];
-
-  for (let i = 0; i < borrowedBooks.length; i += 1) {
-    const borrower = borrowers[i % borrowers.length];
-    await prisma.loan.create({
-      data: {
-        userId: borrower.id,
-        bookId: borrowedBooks[i].id,
-        dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        status: "BORROWED",
-      },
-    });
+  // Last 5 titles: every copy is on loan (availableCopies === 0). One loan per copy, distinct patrons.
+  for (const entry of createdBooks) {
+    if (entry.shelfOnly) continue;
+    const { created, totalCopies } = entry;
+    for (let k = 0; k < totalCopies; k += 1) {
+      const borrower = memberUsers[k % memberUsers.length];
+      await prisma.loan.create({
+        data: {
+          userId: borrower.id,
+          bookId: created.id,
+          dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          status: "BORROWED",
+        },
+      });
+    }
   }
 
   await prisma.config.upsert({
@@ -269,11 +302,73 @@ async function main() {
     },
   });
 
+  await prisma.config.upsert({
+    where: { key: "LOAN_DAYS" },
+    create: {
+      key: "LOAN_DAYS",
+      value: "14",
+      description: "Default loan period in days for borrows and desk checkout.",
+      updatedBy: "admin@library.local",
+    },
+    update: {
+      value: "14",
+      description: "Default loan period in days for borrows and desk checkout.",
+      updatedBy: "admin@library.local",
+    },
+  });
+
+  await prisma.config.upsert({
+    where: { key: "MIN_PASSWORD_LENGTH" },
+    create: {
+      key: "MIN_PASSWORD_LENGTH",
+      value: "6",
+      description: "Minimum password length for registration and admin-created accounts.",
+      updatedBy: "admin@library.local",
+    },
+    update: {
+      value: "6",
+      description: "Minimum password length for registration and admin-created accounts.",
+      updatedBy: "admin@library.local",
+    },
+  });
+
+  await prisma.config.upsert({
+    where: { key: "MAX_BORROW_BOOKS" },
+    create: {
+      key: "MAX_BORROW_BOOKS",
+      value: "5",
+      description: "Maximum concurrent active loans per reader account.",
+      updatedBy: "admin@library.local",
+    },
+    update: {
+      value: "5",
+      description: "Maximum concurrent active loans per reader account.",
+      updatedBy: "admin@library.local",
+    },
+  });
+
+  await prisma.config.upsert({
+    where: { key: "READER_CARD_ID_PATTERN" },
+    create: {
+      key: "READER_CARD_ID_PATTERN",
+      value: "^[A-Z0-9]{6,12}$",
+      description:
+        "Suggested format for reader library card IDs (regex). Used as policy text; optional future validation.",
+      updatedBy: "admin@library.local",
+    },
+    update: {
+      value: "^[A-Z0-9]{6,12}$",
+      description:
+        "Suggested format for reader library card IDs (regex). Used as policy text; optional future validation.",
+      updatedBy: "admin@library.local",
+    },
+  });
+
   console.log("Seed completed:");
-  console.log("- 4 users (1 admin, 1 librarian, 2 students)");
-  console.log("- 20 books across 5 categories");
-  console.log("- 15 available books, 5 borrowed books");
-  console.log("- Config key FINE_RATE_PER_DAY set to 0.50");
+  console.log("- 8 users (1 admin, 1 librarian, 5 students)");
+  console.log("- 20 books across 5 categories, 2–5 copies each (random)");
+  console.log("- First 15 books: all copies on shelf; last 5: all copies on loan (unavailable)");
+  console.log("- Config: FINE_RATE_PER_DAY, LOAN_DAYS, MIN_PASSWORD_LENGTH, MAX_BORROW_BOOKS, READER_CARD_ID_PATTERN");
 }
 
 main()

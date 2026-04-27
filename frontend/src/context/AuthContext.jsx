@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- AuthProvider + useAuth 成对导出 */
+/* eslint-disable react-refresh/only-export-components -- AuthProvider and useAuth are exported together */
 import {
   createContext,
   useCallback,
@@ -40,10 +40,12 @@ export function AuthProvider({ children }) {
   }, [bootstrap])
 
   const login = useCallback(
-    async (email, password, redirectTo = '/books') => {
+    async (email, password, redirectTo = '/books', intentRole) => {
+      const body = { email, password }
+      if (intentRole) body.intentRole = intentRole
       const data = await apiFetch('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       setToken(data.token)
       setUser(data.user)
@@ -68,7 +70,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
-    navigate('/login', { replace: true })
+    navigate('/', { replace: true })
   }, [navigate])
 
   const value = useMemo(
