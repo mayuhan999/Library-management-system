@@ -38,6 +38,7 @@ export function AppLayout() {
     sidebarNav = [
       { to: '/books', label: 'Catalog search', end: true },
       { to: '/reader/loans', label: 'My loans' },
+      { to: '/reader/history', label: 'History' },
       { to: '/reader/holds', label: 'My holds' },
       { to: '/reader/account', label: 'Account' },
     ]
@@ -49,6 +50,7 @@ export function AppLayout() {
       { to: '/librarian/books/new', label: 'Add book' },
       { to: '/librarian/inventory', label: 'Inventory' },
       { to: '/librarian/holds', label: 'Hold queue' },
+      { to: '/librarian/account', label: 'Account' },
     ]
   } else if (user?.role === 'ADMIN') {
     sidebarSubtitle = 'Admin · Catalog'

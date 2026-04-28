@@ -7,6 +7,7 @@ export function ReaderLoansPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [renewingId, setRenewingId] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -18,6 +19,18 @@ export function ReaderLoansPage() {
       setErr(e.message || 'Failed to load')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleRenew(loanId) {
+    setRenewingId(loanId)
+    try {
+      await apiFetch(`/api/reader/loans/${loanId}/renew`, { method: 'POST' })
+      await load()
+    } catch (e) {
+      setErr(e.message || 'Renew failed')
+    } finally {
+      setRenewingId(null)
     }
   }
 
@@ -51,6 +64,7 @@ export function ReaderLoansPage() {
             <tbody>
               {items.map((loan) => {
                 const overdue = loan.displayStatus === 'OVERDUE'
+                const isActive = loan.status === 'BORROWED' && !overdue
                 return (
                   <tr
                     key={loan.id}
@@ -80,11 +94,24 @@ export function ReaderLoansPage() {
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Link to={`/books/${loan.bookId}`}>
-                        <Button type="button" size="sm" variant="outline">
-                          Details
-                        </Button>
-                      </Link>
+                      <div className="flex justify-end gap-2">
+                        {isActive && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRenew(loan.id)}
+                            disabled={renewingId === loan.id}
+                          >
+                            {renewingId === loan.id ? 'Renewing…' : 'Renew'}
+                          </Button>
+                        )}
+                        <Link to={`/books/${loan.bookId}`}>
+                          <Button type="button" size="sm" variant="outline">
+                            Details
+                          </Button>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )

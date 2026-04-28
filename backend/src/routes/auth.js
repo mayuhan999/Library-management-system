@@ -117,4 +117,46 @@ router.get('/me', requireAuth, async (req, res) => {
   return res.json({ user: publicUser(user) });
 });
 
+/** Change current user's password. */
+router.patch('/me/password', requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+
+  const minLen = await getMinPasswordLength();
+  if (newPassword.length < minLen) {
+    return res.status(400).json({ error: `Password must be at least ${minLen} characters` });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user || !user.isActive) {
+    return res.status(401).json({ error: 'User not found or account disabled' });
+  }
+
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { passwordHash },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: req.userId,
+      action: 'UPDATE',
+      entityType: 'User',
+      entityId: req.userId,
+      details: JSON.stringify({ action: 'PASSWORD_CHANGE' }),
+    },
+  });
+
+  res.json({ ok: true, message: 'Password updated successfully' });
+});
+
 module.exports = router;

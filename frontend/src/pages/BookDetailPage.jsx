@@ -67,11 +67,12 @@ export function BookDetailPage() {
     setActionErr('')
     setActionPending(true)
     try {
-      await apiFetch('/api/holds', {
+      const res = await apiFetch('/api/holds', {
         method: 'POST',
         body: JSON.stringify({ bookId: book.id }),
       })
-      setActionMsg('Hold placed. You will be notified when a copy is available.')
+      setActionMsg(`Hold placed. You are #${res.queuePosition} in the queue.`)
+      await reloadBook()
     } catch (err) {
       setActionErr(err.message || 'Hold failed')
     } finally {
@@ -163,6 +164,11 @@ export function BookDetailPage() {
           <dd className="mt-2">
             <BorrowAvailability available={book.availableCopies} total={book.totalCopies} detailed />
           </dd>
+          {!canBorrow && book.activeHoldsCount > 0 ? (
+            <p className="mt-1 text-xs text-[#5c6b7a]">
+              {book.activeHoldsCount} {book.activeHoldsCount === 1 ? 'person' : 'people'} in the hold queue
+            </p>
+          ) : null}
         </div>
       </dl>
 
@@ -178,11 +184,13 @@ export function BookDetailPage() {
           {actionMsg ? <p className="mt-3 text-sm font-medium text-[#0d7a4f]">{actionMsg}</p> : null}
           <div className="mt-4 flex flex-wrap gap-3">
             <Button type="button" disabled={actionPending || !canBorrow} onClick={handleBorrow}>
-              {!canBorrow ? 'Unavailable' : 'Borrow online'}
+              {canBorrow ? 'Borrow online' : 'Unavailable'}
             </Button>
-            <Button type="button" variant="secondary" disabled={actionPending || canBorrow} onClick={handleHold}>
-              {canBorrow ? 'Use borrow when in stock' : 'Place hold'}
-            </Button>
+            {!canBorrow && (
+              <Button type="button" variant="secondary" disabled={actionPending} onClick={handleHold}>
+                Place hold
+              </Button>
+            )}
           </div>
         </section>
       ) : null}

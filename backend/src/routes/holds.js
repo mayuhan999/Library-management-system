@@ -37,11 +37,17 @@ router.post('/', async (req, res) => {
     return res.status(409).json({ error: 'You already have an active reservation for this book' });
   }
 
+  // Determine queue position (active holds placed before this one, for the same book)
+  const queuePosition = await prisma.hold.count({
+    where: { bookId, status: 'ACTIVE', placedAt: { lt: new Date() } },
+  }) + 1;
+
   const hold = await prisma.hold.create({
     data: {
       userId: req.userId,
       bookId,
       status: 'ACTIVE',
+      queuePosition,
       expiresAt: addDays(new Date(), 7),
     },
     include: { book: true },
@@ -53,11 +59,11 @@ router.post('/', async (req, res) => {
       action: 'CREATE',
       entityType: 'Hold',
       entityId: hold.id,
-      details: JSON.stringify({ bookId, kind: 'RESERVE' }),
+      details: JSON.stringify({ bookId, kind: 'RESERVE', queuePosition }),
     },
   });
 
-  return res.status(201).json({ hold });
+  return res.status(201).json({ hold, queuePosition });
 });
 
 module.exports = router;

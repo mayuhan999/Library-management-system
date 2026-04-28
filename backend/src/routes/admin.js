@@ -163,6 +163,38 @@ router.patch('/users/:id', async (req, res) => {
   }
 });
 
+/** Reset a user's password (admin action). Returns a temporary plaintext password. */
+router.post('/users/:id/reset-password', async (req, res) => {
+  const { id } = req.params;
+  const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).toUpperCase().slice(-4);
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+      select: { id: true, email: true, fullName: true, role: true, isActive: true },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId,
+        action: 'UPDATE',
+        entityType: 'User',
+        entityId: user.id,
+        details: JSON.stringify({ action: 'PASSWORD_RESET', targetEmail: user.email }),
+      },
+    });
+
+    res.json({ user, tempPassword });
+  } catch (e) {
+    if (e.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    throw e;
+  }
+});
+
 router.get('/config', async (req, res) => {
   const rows = await prisma.config.findMany({ orderBy: { key: 'asc' } });
   res.json({ items: rows });
@@ -209,7 +241,47 @@ router.patch('/config', async (req, res) => {
   return res.json({ items: results });
 });
 
-/** Connection check + row counts (database “initialized” when tables respond). */
+/** Update a single config key. */
+router.put('/config/:key', async (req, res) => {
+  const { key } = req.params;
+  const { value, description } = req.body || {};
+
+  if (value == null) {
+    return res.status(400).json({ error: 'value is required' });
+  }
+
+  const actor = await prisma.user.findUnique({ where: { id: req.userId } });
+  const updatedBy = actor?.email || req.userId;
+
+  const saved = await prisma.config.upsert({
+    where: { key },
+    create: {
+      key,
+      value: String(value),
+      description: typeof description === 'string' ? description : null,
+      updatedBy,
+    },
+    update: {
+      value: String(value),
+      updatedBy,
+      ...(description != null ? { description } : {}),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: req.userId,
+      action: 'UPDATE',
+      entityType: 'Config',
+      entityId: key,
+      details: JSON.stringify({ key, value: saved.value }),
+    },
+  });
+
+  res.json({ item: saved });
+});
+
+/** Connection check + row counts (database "initialized" when tables respond). */
 router.get('/database-status', async (req, res) => {
   await prisma.$queryRaw`SELECT 1`;
   const [users, books, loans, holds, configRows] = await Promise.all([
@@ -226,7 +298,7 @@ router.get('/database-status', async (req, res) => {
   });
 });
 
-/** Upsert default configuration keys if missing (safe “init rules” without shell access). */
+/** Upsert default configuration keys if missing (safe "init rules" without shell access). */
 router.post('/database-bootstrap', async (req, res) => {
   const actor = await prisma.user.findUnique({ where: { id: req.userId } });
   const updatedBy = actor?.email || req.userId;
@@ -248,6 +320,11 @@ router.post('/database-bootstrap', async (req, res) => {
       description: 'Maximum concurrent active loans per reader account.',
     },
     {
+      key: 'MAX_RENEW_COUNT',
+      value: '1',
+      description: 'Maximum number of renewals allowed per loan (0 = renewals disabled).',
+    },
+    {
       key: 'FINE_RATE_PER_DAY',
       value: '0.50',
       description: 'Reserved for future overdue fines (Release 2+).',
@@ -255,7 +332,7 @@ router.post('/database-bootstrap', async (req, res) => {
     {
       key: 'READER_CARD_ID_PATTERN',
       value: '^[A-Z0-9]{6,12}$',
-      description: 'Suggested reader card ID format (policy text).',
+      description: 'Suggested reader card ID format (regex, policy text).',
     },
   ];
 

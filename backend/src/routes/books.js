@@ -59,7 +59,11 @@ router.get('/:id', async (req, res) => {
   if (!book) {
     return res.status(404).json({ error: 'Book not found' });
   }
-  res.json(book);
+  // Count active holds for this book
+  const activeHoldsCount = await prisma.hold.count({
+    where: { bookId: req.params.id, status: 'ACTIVE' },
+  });
+  res.json({ ...book, activeHoldsCount });
 });
 
 module.exports = router;
