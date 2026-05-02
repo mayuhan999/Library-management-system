@@ -96,6 +96,7 @@ model Loan {
   dueAt       DateTime
   returnedAt  DateTime?
   status      LoanStatus @default(BORROWED)
+  renewCount  Int        @default(0)
   fineAmount  Float      @default(0)
   notes       String?
   createdAt   DateTime   @default(now())

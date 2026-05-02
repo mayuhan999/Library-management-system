@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { getLoanDays, getMaxBorrowBooks } = require('../lib/libraryRules');
+const { getLoanDays, getMaxBorrowBooks, getFineRatePerDay } = require('../lib/libraryRules');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -116,6 +116,90 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
+/** Return a borrowed copy. Calculates overdue fine if applicable. */
+router.post('/return', async (req, res) => {
+  const loanId = typeof req.body?.loanId === 'string' ? req.body.loanId.trim() : '';
+  if (!loanId) {
+    return res.status(400).json({ error: 'loanId is required' });
+  }
+
+  const fineRate = await getFineRatePerDay();
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const loan = await tx.loan.findFirst({
+        where: { id: loanId, status: 'BORROWED' },
+        include: { book: true },
+      });
+      if (!loan) {
+        const err = new Error('NOT_FOUND');
+        throw err;
+      }
+
+      const now = new Date();
+      let fineAmount = 0;
+      const isOverdue = loan.dueAt < now;
+
+      if (isOverdue && fineRate > 0) {
+        const overdueMs = now - new Date(loan.dueAt);
+        const overdueDays = Math.ceil(overdueMs / (1000 * 60 * 60 * 24));
+        fineAmount = parseFloat((overdueDays * fineRate).toFixed(2));
+      }
+
+      const updated = await tx.loan.update({
+        where: { id: loan.id },
+        data: {
+          status: 'RETURNED',
+          returnedAt: now,
+          fineAmount,
+        },
+        include: {
+          book: { select: { id: true, title: true, author: true, isbn: true } },
+          user: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      await tx.book.update({
+        where: { id: loan.bookId },
+        data: { availableCopies: { increment: 1 } },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.userId,
+          action: 'RETURN',
+          entityType: 'Loan',
+          entityId: loan.id,
+          details: JSON.stringify({
+            bookId: loan.bookId,
+            isOverdue,
+            overdueDays: isOverdue ? Math.ceil((now - new Date(loan.dueAt)) / (1000 * 60 * 60 * 24)) : 0,
+            fineAmount,
+          }),
+        },
+      });
+
+      return updated;
+    });
+
+    const isOverdue = new Date(result.dueAt) < new Date();
+    return res.json({
+      ok: true,
+      loanId: result.id,
+      fineAmount: result.fineAmount,
+      isOverdue,
+      message: result.fineAmount > 0
+        ? `Book returned. Overdue fine: $${result.fineAmount.toFixed(2)}`
+        : 'Book returned successfully.',
+    });
+  } catch (e) {
+    if (e.message === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'Active loan not found' });
+    }
+    throw e;
+  }
+});
+
 /** Add a new title / copies to the catalog. */
 router.post('/books', async (req, res) => {
   const b = req.body || {};
@@ -168,59 +252,6 @@ router.post('/books', async (req, res) => {
   });
 
   return res.status(201).json({ book });
-});
-
-/** Return a borrowed copy (by loan id). */
-router.post('/return', async (req, res) => {
-  const loanId = typeof req.body?.loanId === 'string' ? req.body.loanId.trim() : '';
-  if (!loanId) {
-    return res.status(400).json({ error: 'loanId is required' });
-  }
-
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const loan = await tx.loan.findFirst({
-        where: { id: loanId, status: 'BORROWED' },
-        include: { book: true },
-      });
-      if (!loan) {
-        const err = new Error('NOT_FOUND');
-        throw err;
-      }
-
-      await tx.loan.update({
-        where: { id: loan.id },
-        data: {
-          status: 'RETURNED',
-          returnedAt: new Date(),
-        },
-      });
-
-      await tx.book.update({
-        where: { id: loan.bookId },
-        data: { availableCopies: { increment: 1 } },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          userId: req.userId,
-          action: 'RETURN',
-          entityType: 'Loan',
-          entityId: loan.id,
-          details: JSON.stringify({ bookId: loan.bookId }),
-        },
-      });
-
-      return loan;
-    });
-
-    return res.json({ ok: true, loanId: result.id });
-  } catch (e) {
-    if (e.message === 'NOT_FOUND') {
-      return res.status(404).json({ error: 'Active loan not found' });
-    }
-    throw e;
-  }
 });
 
 /** Active reservation queue for staff. */

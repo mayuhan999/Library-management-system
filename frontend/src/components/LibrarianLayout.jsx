@@ -7,6 +7,7 @@ const nav = [
   { to: '/librarian/books/new', label: 'Add book' },
   { to: '/librarian/inventory', label: 'Inventory' },
   { to: '/librarian/holds', label: 'Hold queue' },
+  { to: '/librarian/account', label: 'Account' },
 ]
 
 function initials(name) {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/api/http'
 
-export function ReaderAccountPage() {
+export function LibrarianAccountPage() {
   const { user } = useAuth()
 
   const [showForm, setShowForm] = useState(false)
@@ -55,7 +55,7 @@ export function ReaderAccountPage() {
     <div className="b-app max-w-lg space-y-4">
       <div>
         <h1 className="text-lg font-semibold text-[#003366]">Account</h1>
-        <p className="mt-1 text-sm text-[#5c6b7a]">Summary of your reader profile.</p>
+        <p className="mt-1 text-sm text-[#5c6b7a]">Summary of your librarian profile.</p>
       </div>
 
       <dl className="rounded-sm border border-[#e5e8eb] bg-white p-5 text-sm">
@@ -71,7 +71,7 @@ export function ReaderAccountPage() {
           <dt className="text-[#5c6b7a]">Role</dt>
           <dd>
             <span className="rounded-sm border border-[#003366]/25 bg-[#e8eef4] px-2 py-0.5 text-xs font-medium text-[#003366]">
-              Reader
+              Librarian
             </span>
           </dd>
         </div>

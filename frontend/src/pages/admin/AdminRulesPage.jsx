@@ -7,6 +7,7 @@ const KEY_LABEL = {
   LOAN_DAYS: 'Loan period (days)',
   MIN_PASSWORD_LENGTH: 'Minimum password length',
   MAX_BORROW_BOOKS: 'Max concurrent loans per reader',
+  MAX_RENEW_COUNT: 'Max renewals per loan (0 = disabled)',
   FINE_RATE_PER_DAY: 'Fine per day (reserved)',
   READER_CARD_ID_PATTERN: 'Reader card ID pattern (regex, policy)',
 }

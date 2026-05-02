@@ -15,10 +15,12 @@ import { AdminPermissionsPage } from '@/pages/admin/AdminPermissionsPage'
 import { AdminSystemPage } from '@/pages/admin/AdminSystemPage'
 import { AdminRulesPage } from '@/pages/admin/AdminRulesPage'
 import { LibrarianDeskPage } from '@/pages/librarian/LibrarianDeskPage'
+import { LibrarianAccountPage } from '@/pages/librarian/LibrarianAccountPage'
 import { LibrarianNewBookPage } from '@/pages/librarian/LibrarianNewBookPage'
 import { LibrarianInventoryPage } from '@/pages/librarian/LibrarianInventoryPage'
 import { LibrarianHoldsQueuePage } from '@/pages/librarian/LibrarianHoldsQueuePage'
 import { ReaderLoansPage } from '@/pages/reader/ReaderLoansPage'
+import { ReaderHistoryPage } from '@/pages/reader/ReaderHistoryPage'
 import { ReaderHoldsPage } from '@/pages/reader/ReaderHoldsPage'
 import { ReaderAccountPage } from '@/pages/reader/ReaderAccountPage'
 import { homePathForRole } from '@/lib/nav'
@@ -84,6 +86,14 @@ export default function App() {
             }
           />
           <Route
+            path="reader/history"
+            element={
+              <RoleProtected allow={['MEMBER']}>
+                <ReaderHistoryPage />
+              </RoleProtected>
+            }
+          />
+          <Route
             path="reader/holds"
             element={
               <RoleProtected allow={['MEMBER']}>
@@ -104,6 +114,7 @@ export default function App() {
         <Route path="librarian" element={<LibrarianShell />}>
           <Route index element={<Navigate to="/librarian/desk" replace />} />
           <Route path="desk" element={<LibrarianDeskPage />} />
+          <Route path="account" element={<LibrarianAccountPage />} />
           <Route path="books/new" element={<LibrarianNewBookPage />} />
           <Route path="inventory" element={<LibrarianInventoryPage />} />
           <Route path="holds" element={<LibrarianHoldsQueuePage />} />

@@ -23,4 +23,14 @@ async function getMaxBorrowBooks() {
   return Math.min(50, Math.max(1, Math.floor(n)));
 }
 
-module.exports = { getLoanDays, getMinPasswordLength, getMaxBorrowBooks, getConfigNumber };
+async function getMaxRenewCount() {
+  const n = await getConfigNumber('MAX_RENEW_COUNT', 1);
+  return Math.min(10, Math.max(0, Math.floor(n)));
+}
+
+async function getFineRatePerDay() {
+  const n = await getConfigNumber('FINE_RATE_PER_DAY', 0);
+  return Math.max(0, n);
+}
+
+module.exports = { getLoanDays, getMinPasswordLength, getMaxBorrowBooks, getMaxRenewCount, getFineRatePerDay, getConfigNumber };

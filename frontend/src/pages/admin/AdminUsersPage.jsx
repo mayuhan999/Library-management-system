@@ -25,6 +25,9 @@ export function AdminUsersPage() {
   const [createMsg, setCreateMsg] = useState('')
   const [createErr, setCreateErr] = useState('')
 
+  const [resetTarget, setResetTarget] = useState(null) // { user, tempPassword }
+  const [resetErr, setResetErr] = useState('')
+
   const loadUsers = useCallback(async () => {
     setUserLoading(true)
     setUserErr('')
@@ -64,6 +67,16 @@ export function AdminUsersPage() {
     }
   }
 
+  async function handleResetPassword(u) {
+    setResetErr('')
+    try {
+      const res = await apiFetch(`/api/admin/users/${u.id}/reset-password`, { method: 'POST' })
+      setResetTarget({ user: res.user, tempPassword: res.tempPassword })
+    } catch (e) {
+      setResetErr(e.message || 'Reset failed')
+    }
+  }
+
   async function handleCreateUser(e) {
     e.preventDefault()
     setCreateMsg('')
@@ -97,6 +110,20 @@ export function AdminUsersPage() {
         <h1 className="text-lg font-semibold text-[#003366]">User management</h1>
         <p className="mt-1 text-sm text-[#5c6b7a]">Create accounts, search, enable or disable users (disabled shown in red).</p>
       </div>
+
+      {resetTarget ? (
+        <div className="rounded-sm border border-[#0d7a4f]/40 bg-[#ecfdf3] p-5">
+          <h2 className="text-sm font-semibold text-[#0d7a4f]">Password reset for {resetTarget.user.fullName}</h2>
+          <p className="mt-2 text-sm text-[#1a2b3c]">Temporary password (show once, share securely):</p>
+          <p className="mt-1 font-mono text-lg font-bold tracking-wide text-[#003366]">{resetTarget.tempPassword}</p>
+          <p className="mt-2 text-xs text-[#5c6b7a]">Advise the user to change their password after logging in.</p>
+          <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={() => setResetTarget(null)}>
+            Close
+          </Button>
+        </div>
+      ) : null}
+
+      {resetErr ? <p className="text-sm text-[#b42318]">{resetErr}</p> : null}
 
       <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
         <h2 className="text-sm font-semibold text-[#1a2b3c]">Create account</h2>
@@ -190,9 +217,14 @@ export function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Button type="button" size="sm" variant="outline" onClick={() => toggleUser(u)}>
-                        {u.isActive ? 'Disable' : 'Enable'}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => handleResetPassword(u)}>
+                          Reset password
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => toggleUser(u)}>
+                          {u.isActive ? 'Disable' : 'Enable'}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

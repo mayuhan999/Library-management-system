@@ -5,7 +5,7 @@ require('dotenv').config();
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error(
-    'DATABASE_URL is not set. Copy backend/.env.example to backend/.env and adjust if needed.',
+    'DATABASE_URL is not set. Copy backend/.env to backend/.env and adjust if needed.',
   );
 }
 
