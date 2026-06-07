@@ -7,7 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "seed": "prisma db seed"
+    "migrate": "prisma migrate deploy",
+    "seed": "prisma db seed",
+    "demo:renew-fine": "node scripts/prepare-demo-renew-fine.cjs",
+    "demo:four-loans": "node scripts/prepare-demo-four-loans.cjs",
+    "demo:r3": "node scripts/prepare-demo-r3.cjs",
+    "demo:acceptance": "node scripts/prepare-demo-acceptance.cjs",
+    "books:available": "node scripts/reset-book-available.cjs"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +22,7 @@
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.5.0",
     "@prisma/client": "^7.5.0",
+    "alipay-sdk": "^4.14.0",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",

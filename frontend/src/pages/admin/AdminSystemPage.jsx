@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '@/api/http'
 import { Button } from '@/components/ui/button'
+import { inputClass } from '@/lib/formStyles'
 
 const healthUrl = `${import.meta.env.VITE_API_BASE || ''}/health`
 
@@ -12,6 +13,11 @@ export function AdminSystemPage() {
   const [bootMsg, setBootMsg] = useState('')
   const [bootErr, setBootErr] = useState('')
   const [bootPending, setBootPending] = useState(false)
+  const [backups, setBackups] = useState([])
+  const [backupMsg, setBackupMsg] = useState('')
+  const [backupErr, setBackupErr] = useState('')
+  const [restoreFile, setRestoreFile] = useState('')
+  const [restorePending, setRestorePending] = useState(false)
 
   const loadDb = useCallback(async () => {
     setDbErr('')
@@ -24,6 +30,16 @@ export function AdminSystemPage() {
     }
   }, [])
 
+  const loadBackups = useCallback(async () => {
+    setBackupErr('')
+    try {
+      const res = await apiFetch('/api/admin/database/backups')
+      setBackups(res.items || [])
+    } catch (e) {
+      setBackupErr(e.message || 'Cannot list backups')
+    }
+  }, [])
+
   useEffect(() => {
     fetch(healthUrl)
       .then((r) => r.json())
@@ -33,7 +49,8 @@ export function AdminSystemPage() {
 
   useEffect(() => {
     loadDb()
-  }, [loadDb])
+    loadBackups()
+  }, [loadDb, loadBackups])
 
   async function runBootstrap() {
     setBootMsg('')
@@ -50,11 +67,49 @@ export function AdminSystemPage() {
     }
   }
 
+  async function runBackup() {
+    setBackupMsg('')
+    setBackupErr('')
+    try {
+      const res = await apiFetch('/api/admin/database/backup', { method: 'POST', body: JSON.stringify({}) })
+      setBackupMsg(`Backup created: ${res.backup?.filename}`)
+      await loadBackups()
+    } catch (e) {
+      setBackupErr(e.message || 'Backup failed')
+    }
+  }
+
+  async function runRestore() {
+    if (!restoreFile) {
+      setBackupErr('Select a backup file')
+      return
+    }
+    if (!window.confirm(`Restore from "${restoreFile}"? This overwrites the live database.`)) return
+
+    setBackupMsg('')
+    setBackupErr('')
+    setRestorePending(true)
+    try {
+      await apiFetch('/api/admin/database/restore', {
+        method: 'POST',
+        body: JSON.stringify({ filename: restoreFile, confirm: true }),
+      })
+      setBackupMsg(`Database restored from ${restoreFile}. Refresh counts below.`)
+      await loadDb()
+    } catch (e) {
+      setBackupErr(e.message || 'Restore failed')
+    } finally {
+      setRestorePending(false)
+    }
+  }
+
   return (
     <div className="b-app space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-[#003366]">System & database</h1>
-        <p className="mt-1 text-sm text-[#5c6b7a]">Check API health, verify the database connection, and seed default loan rules.</p>
+        <p className="mt-1 text-sm text-[#5c6b7a]">
+          A1.09 — Manual backup, scheduled auto-backup (configure on Loan rules), and restore.
+        </p>
       </div>
 
       <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
@@ -67,17 +122,10 @@ export function AdminSystemPage() {
         ) : !healthErr ? (
           <p className="mt-2 text-sm text-[#5c6b7a]">Checking…</p>
         ) : null}
-        <p className="mt-3 text-xs text-[#5c6b7a]">
-          Set <code className="rounded bg-[#f5f5f5] px-1">VITE_API_BASE</code> for production; dev proxies{' '}
-          <code className="rounded bg-[#f5f5f5] px-1">/api</code> to the backend.
-        </p>
       </div>
 
       <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
         <h2 className="text-sm font-semibold text-[#1a2b3c]">Database status</h2>
-        <p className="mt-1 text-xs text-[#5c6b7a]">
-          Run Prisma migrations on the server for first deploy. This view confirms connectivity and row counts.
-        </p>
         {dbErr ? <p className="mt-2 text-sm text-[#b42318]">{dbErr}</p> : null}
         {dbStatus?.ok ? (
           <ul className="mt-3 space-y-1 text-sm text-[#1a2b3c]">
@@ -101,10 +149,48 @@ export function AdminSystemPage() {
       </div>
 
       <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
+        <h2 className="text-sm font-semibold text-[#1a2b3c]">Database backup & restore</h2>
+        <p className="mt-1 text-xs text-[#5c6b7a]">
+          Backups are stored server-side. Enable auto-backup via{' '}
+          <code className="rounded bg-[#f5f5f5] px-1">AUTO_BACKUP_ENABLED</code> on Loan rules.
+        </p>
+        {backupErr ? <p className="mt-2 text-sm text-[#b42318]">{backupErr}</p> : null}
+        {backupMsg ? <p className="mt-2 text-sm text-[#0d7a4f]">{backupMsg}</p> : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button type="button" onClick={runBackup}>
+            Create backup now
+          </Button>
+          <Button type="button" variant="secondary" onClick={loadBackups}>
+            Refresh list
+          </Button>
+        </div>
+        {backups.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            <select
+              value={restoreFile}
+              onChange={(e) => setRestoreFile(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select backup to restore…</option>
+              {backups.map((b) => (
+                <option key={b.filename} value={b.filename}>
+                  {b.filename} ({Math.round(b.sizeBytes / 1024)} KB, {new Date(b.createdAt).toLocaleString()})
+                </option>
+              ))}
+            </select>
+            <Button type="button" variant="secondary" disabled={restorePending} onClick={runRestore}>
+              {restorePending ? 'Restoring…' : 'Restore selected backup'}
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-[#5c6b7a]">No backups yet.</p>
+        )}
+      </div>
+
+      <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
         <h2 className="text-sm font-semibold text-[#1a2b3c]">Default rules bootstrap</h2>
         <p className="mt-1 text-xs text-[#5c6b7a]">
-          Upsert default config keys (loan days, password length, max loans, etc.) without wiping data. For a full reset use{' '}
-          <code className="rounded bg-[#f5f5f5] px-1">npm run seed</code> in the backend.
+          Upsert default config keys (loan days, reminders, backup settings, etc.) without wiping data.
         </p>
         {bootErr ? <p className="mt-2 text-sm text-[#b42318]">{bootErr}</p> : null}
         {bootMsg ? <p className="mt-2 text-sm text-[#0d7a4f]">{bootMsg}</p> : null}

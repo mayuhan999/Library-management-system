@@ -14,15 +14,21 @@ import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 import { AdminPermissionsPage } from '@/pages/admin/AdminPermissionsPage'
 import { AdminSystemPage } from '@/pages/admin/AdminSystemPage'
 import { AdminRulesPage } from '@/pages/admin/AdminRulesPage'
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminPaymentsPage } from '@/pages/admin/AdminPaymentsPage'
+import { LibrarianDashboardPage } from '@/pages/librarian/LibrarianDashboardPage'
 import { LibrarianDeskPage } from '@/pages/librarian/LibrarianDeskPage'
 import { LibrarianAccountPage } from '@/pages/librarian/LibrarianAccountPage'
 import { LibrarianNewBookPage } from '@/pages/librarian/LibrarianNewBookPage'
+import { LibrarianBookLabelsPage } from '@/pages/librarian/LibrarianBookLabelsPage'
 import { LibrarianInventoryPage } from '@/pages/librarian/LibrarianInventoryPage'
 import { LibrarianHoldsQueuePage } from '@/pages/librarian/LibrarianHoldsQueuePage'
+import { LibrarianReportsPage } from '@/pages/librarian/LibrarianReportsPage'
 import { ReaderLoansPage } from '@/pages/reader/ReaderLoansPage'
 import { ReaderHistoryPage } from '@/pages/reader/ReaderHistoryPage'
 import { ReaderHoldsPage } from '@/pages/reader/ReaderHoldsPage'
 import { ReaderAccountPage } from '@/pages/reader/ReaderAccountPage'
+import { ReaderAlipayPayPage } from '@/pages/reader/ReaderAlipayPayPage'
 import { homePathForRole } from '@/lib/nav'
 
 function HomeRedirect() {
@@ -109,19 +115,32 @@ export default function App() {
               </RoleProtected>
             }
           />
+          <Route
+            path="reader/pay/:paymentId"
+            element={
+              <RoleProtected allow={['MEMBER']}>
+                <ReaderAlipayPayPage />
+              </RoleProtected>
+            }
+          />
         </Route>
 
         <Route path="librarian" element={<LibrarianShell />}>
-          <Route index element={<Navigate to="/librarian/desk" replace />} />
+          <Route index element={<Navigate to="/librarian/dashboard" replace />} />
+          <Route path="dashboard" element={<LibrarianDashboardPage />} />
           <Route path="desk" element={<LibrarianDeskPage />} />
           <Route path="account" element={<LibrarianAccountPage />} />
           <Route path="books/new" element={<LibrarianNewBookPage />} />
+          <Route path="books/:bookId/labels" element={<LibrarianBookLabelsPage />} />
           <Route path="inventory" element={<LibrarianInventoryPage />} />
           <Route path="holds" element={<LibrarianHoldsQueuePage />} />
+          <Route path="reports" element={<LibrarianReportsPage />} />
         </Route>
 
         <Route path="admin" element={<AdminShell />}>
-          <Route index element={<Navigate to="/admin/users" replace />} />
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="payments" element={<AdminPaymentsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="permissions" element={<AdminPermissionsPage />} />
           <Route path="system" element={<AdminSystemPage />} />

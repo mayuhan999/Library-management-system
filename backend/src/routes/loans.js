@@ -2,17 +2,12 @@ const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { getLoanDays, getMaxBorrowBooks } = require('../lib/libraryRules');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { checkoutForUser } = require('../lib/loanCheckout');
 
 const router = express.Router();
 
 router.use(requireAuth);
 router.use(requireRole(['MEMBER']));
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 router.post('/borrow', async (req, res) => {
   const bookId = typeof req.body?.bookId === 'string' ? req.body.bookId.trim() : '';
@@ -24,62 +19,19 @@ router.post('/borrow', async (req, res) => {
   const maxBooks = await getMaxBorrowBooks();
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const book = await tx.book.findUnique({ where: { id: bookId } });
-      if (!book) {
-        const err = new Error('NOT_FOUND');
-        throw err;
-      }
-      if (book.availableCopies < 1) {
-        const err = new Error('UNAVAILABLE');
-        throw err;
-      }
+    const loan = await prisma.$transaction(async (tx) =>
+      checkoutForUser(tx, {
+        userId: req.userId,
+        bookId,
+        loanDays,
+        maxBooks,
+        auditUserId: req.userId,
+        channel: 'WEB',
+      }),
+    );
 
-      const activeCount = await tx.loan.count({
-        where: { userId: req.userId, status: 'BORROWED' },
-      });
-      if (activeCount >= maxBooks) {
-        const err = new Error('LIMIT');
-        throw err;
-      }
-
-      const existing = await tx.loan.findFirst({
-        where: { userId: req.userId, bookId, status: 'BORROWED' },
-      });
-      if (existing) {
-        const err = new Error('ALREADY_BORROWED');
-        throw err;
-      }
-
-      await tx.book.update({
-        where: { id: bookId },
-        data: { availableCopies: { decrement: 1 } },
-      });
-
-      const loan = await tx.loan.create({
-        data: {
-          userId: req.userId,
-          bookId,
-          dueAt: addDays(new Date(), loanDays),
-          status: 'BORROWED',
-        },
-        include: { book: true },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          userId: req.userId,
-          action: 'BORROW',
-          entityType: 'Loan',
-          entityId: loan.id,
-          details: JSON.stringify({ bookId }),
-        },
-      });
-
-      return loan;
-    });
-
-    return res.status(201).json({ loan: result });
+    const { user: _u, ...loanOut } = loan;
+    return res.status(201).json({ loan: loanOut });
   } catch (e) {
     if (e.message === 'NOT_FOUND') {
       return res.status(404).json({ error: 'Book not found' });
@@ -96,6 +48,9 @@ router.post('/borrow', async (req, res) => {
       return res.status(409).json({
         error: `You have reached the maximum of ${maxBooks} books on loan. Return one before borrowing another.`,
       });
+    }
+    if (e.message === 'BAD_REQUEST' || e.message === 'COPY_NOT_FOUND') {
+      return res.status(400).json({ error: 'Borrow request could not be completed' });
     }
     throw e;
   }

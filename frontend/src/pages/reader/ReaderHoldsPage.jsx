@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '@/api/http'
+import { Button } from '@/components/ui/button'
 
 function holdBadge(status) {
   switch (status) {
@@ -22,6 +23,18 @@ function holdBadge(status) {
           Cancelled
         </span>
       )
+    case 'APPROVED':
+      return (
+        <span className="rounded-sm border border-[#175cd3]/40 bg-[#eff8ff] px-2 py-0.5 text-xs font-semibold text-[#175cd3]">
+          Approved
+        </span>
+      )
+    case 'READY':
+      return (
+        <span className="rounded-sm border border-[#0d7a4f]/40 bg-[#ecfdf3] px-2 py-0.5 text-xs font-semibold text-[#027a48]">
+          Ready for pickup
+        </span>
+      )
     case 'EXPIRED':
       return (
         <span className="rounded-sm border border-[#f04438] bg-[#fef3f2] px-2 py-0.5 text-xs font-semibold text-[#b42318]">
@@ -40,22 +53,32 @@ export function ReaderHoldsPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
-  useEffect(() => {
-    let c = false
-    ;(async () => {
-      try {
-        const res = await apiFetch('/api/reader/holds')
-        if (!c) setItems(res.items || [])
-      } catch (e) {
-        if (!c) setErr(e.message || 'Failed to load')
-      } finally {
-        if (!c) setLoading(false)
-      }
-    })()
-    return () => {
-      c = true
+  const load = useCallback(async () => {
+    setLoading(true)
+    setErr('')
+    try {
+      const res = await apiFetch('/api/reader/holds')
+      setItems(res.items || [])
+    } catch (e) {
+      setErr(e.message || 'Failed to load')
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function cancelHold(id) {
+    if (!window.confirm('Cancel this reservation?')) return
+    try {
+      await apiFetch(`/api/reader/holds/${id}`, { method: 'DELETE' })
+      await load()
+    } catch (e) {
+      setErr(e.message || 'Cancel failed')
+    }
+  }
 
   return (
     <div className="b-app max-w-5xl space-y-4">
@@ -90,6 +113,11 @@ export function ReaderHoldsPage() {
                   <td className="px-3 py-2.5 text-[#5c6b7a]">{new Date(h.placedAt).toLocaleString()}</td>
                   <td className="px-3 py-2.5">{holdBadge(h.status)}</td>
                   <td className="px-3 py-2.5 text-right">
+                    {['ACTIVE', 'APPROVED', 'READY'].includes(h.status) ? (
+                      <Button type="button" size="sm" variant="secondary" className="mr-2" onClick={() => cancelHold(h.id)}>
+                        Cancel
+                      </Button>
+                    ) : null}
                     <Link to={`/books/${h.bookId}`} className="text-sm font-medium text-[#003366] hover:underline">
                       View
                     </Link>

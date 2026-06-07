@@ -70,6 +70,11 @@ export function ReaderHistoryPage() {
                           {loan.book?.title}
                         </Link>
                         <div className="text-xs text-[#5c6b7a]">{loan.book?.author}</div>
+                        {loan.bookCopy?.libraryBarcode ? (
+                          <div className="mt-0.5 font-mono text-[10px] text-[#5c6b7a]">
+                            {loan.bookCopy.libraryBarcode}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-3 py-2.5 text-[#5c6b7a]">
                         {new Date(loan.borrowedAt).toLocaleDateString()}

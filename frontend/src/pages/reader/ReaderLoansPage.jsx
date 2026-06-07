@@ -7,7 +7,9 @@ export function ReaderLoansPage() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [renewingId, setRenewingId] = useState(null)
+  const [maxRenewalsPerLoan, setMaxRenewalsPerLoan] = useState(1)
 
   async function load() {
     setLoading(true)
@@ -15,6 +17,9 @@ export function ReaderLoansPage() {
     try {
       const res = await apiFetch('/api/reader/loans')
       setItems(res.items || [])
+      if (typeof res.meta?.maxRenewalsPerLoan === 'number') {
+        setMaxRenewalsPerLoan(res.meta.maxRenewalsPerLoan)
+      }
     } catch (e) {
       setErr(e.message || 'Failed to load')
     } finally {
@@ -23,10 +28,18 @@ export function ReaderLoansPage() {
   }
 
   async function handleRenew(loanId) {
+    setErr('')
+    setSuccessMsg('')
     setRenewingId(loanId)
     try {
-      await apiFetch(`/api/reader/loans/${loanId}/renew`, { method: 'POST' })
+      const res = await apiFetch(`/api/reader/loans/${loanId}/renew`, { method: 'POST' })
+      const newDue = res.loan?.dueAt
       await load()
+      setSuccessMsg(
+        newDue
+          ? `Renewed. New due date: ${new Date(newDue).toLocaleString()}`
+          : 'Renewed.',
+      )
     } catch (e) {
       setErr(e.message || 'Renew failed')
     } finally {
@@ -45,7 +58,16 @@ export function ReaderLoansPage() {
         <p className="mt-1 text-sm text-[#5c6b7a]">Active and past loans. Overdue rows are highlighted.</p>
       </div>
 
-      {err ? <p className="text-sm text-[#b42318]">{err}</p> : null}
+      {err ? (
+        <p className="text-sm text-[#b42318]" role="alert">
+          {err}
+        </p>
+      ) : null}
+      {successMsg ? (
+        <p className="text-sm font-medium text-[#0d7a4f]" role="status">
+          {successMsg}
+        </p>
+      ) : null}
 
       {loading ? (
         <p className="text-sm text-[#5c6b7a]">Loading…</p>
@@ -55,8 +77,10 @@ export function ReaderLoansPage() {
             <thead>
               <tr className="border-b border-[#e5e8eb] bg-[#f5f5f5]">
                 <th className="px-3 py-2 font-medium text-[#3d4f5f]">Book</th>
+                <th className="px-3 py-2 font-medium text-[#3d4f5f]">Library barcode</th>
                 <th className="px-3 py-2 font-medium text-[#3d4f5f]">Borrowed</th>
                 <th className="px-3 py-2 font-medium text-[#3d4f5f]">Due</th>
+                <th className="px-3 py-2 font-medium text-[#3d4f5f]">Renews</th>
                 <th className="px-3 py-2 font-medium text-[#3d4f5f]">Status</th>
                 <th className="px-3 py-2 text-right font-medium text-[#3d4f5f]">Action</th>
               </tr>
@@ -65,6 +89,8 @@ export function ReaderLoansPage() {
               {items.map((loan) => {
                 const overdue = loan.displayStatus === 'OVERDUE'
                 const isActive = loan.status === 'BORROWED' && !overdue
+                const renewCount = loan.renewCount ?? 0
+                const canRenew = isActive && renewCount < maxRenewalsPerLoan
                 return (
                   <tr
                     key={loan.id}
@@ -76,8 +102,17 @@ export function ReaderLoansPage() {
                       </Link>
                       <div className="text-xs text-[#5c6b7a]">{loan.book?.author}</div>
                     </td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-[#5c6b7a]">
+                      {loan.bookCopy?.libraryBarcode ?? '—'}
+                    </td>
                     <td className="px-3 py-2.5 text-[#5c6b7a]">{new Date(loan.borrowedAt).toLocaleDateString()}</td>
                     <td className="px-3 py-2.5">{new Date(loan.dueAt).toLocaleDateString()}</td>
+                    <td
+                      className="px-3 py-2.5 tabular-nums text-[#5c6b7a]"
+                      title={`Renewals used / max (${maxRenewalsPerLoan}) from library rules`}
+                    >
+                      {loan.status === 'BORROWED' ? `${renewCount} / ${maxRenewalsPerLoan}` : '—'}
+                    </td>
                     <td className="px-3 py-2.5">
                       {overdue ? (
                         <span className="rounded-sm border border-[#f04438] bg-[#fef3f2] px-2 py-0.5 text-xs font-semibold text-[#b42318]">
@@ -101,7 +136,14 @@ export function ReaderLoansPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleRenew(loan.id)}
-                            disabled={renewingId === loan.id}
+                            disabled={renewingId === loan.id || !canRenew}
+                            title={
+                              !canRenew
+                                ? maxRenewalsPerLoan <= 0
+                                  ? 'Renewals are not enabled'
+                                  : 'Maximum renewals reached'
+                                : undefined
+                            }
                           >
                             {renewingId === loan.id ? 'Renewing…' : 'Renew'}
                           </Button>

@@ -3,10 +3,12 @@ import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 
 const nav = [
+  { to: '/librarian/dashboard', label: 'Dashboard' },
   { to: '/librarian/desk', label: 'Desk checkout' },
   { to: '/librarian/books/new', label: 'Add book' },
   { to: '/librarian/inventory', label: 'Inventory' },
-  { to: '/librarian/holds', label: 'Hold queue' },
+  { to: '/librarian/holds', label: 'Reservations' },
+  { to: '/librarian/reports', label: 'Reports' },
   { to: '/librarian/account', label: 'Account' },
 ]
 

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../lib/prisma');
 const { getMinPasswordLength } = require('../lib/libraryRules');
+const { processDueRemindersForUser } = require('../lib/dueReminders');
 const { requireAuth, getJwtSecret } = require('../middleware/auth');
 
 const router = express.Router();
@@ -104,6 +105,10 @@ router.post('/login', async (req, res) => {
       entityId: user.id,
     },
   });
+
+  if (user.role === 'MEMBER') {
+    processDueRemindersForUser(user.id).catch(() => {});
+  }
 
   const token = signToken(user);
   return res.json({ token, user: publicUser(user) });

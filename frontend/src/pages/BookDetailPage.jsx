@@ -122,8 +122,12 @@ export function BookDetailPage() {
 
       <dl className="grid gap-4 rounded-sm border border-[#e5e8eb] bg-white p-5 text-sm sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <dt className="text-xs font-medium uppercase tracking-wide text-[#5c6b7a]">Book ID (for desk checkout)</dt>
-          <dd className="mt-1 font-mono text-xs text-[#1a2b3c]">{book.id}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-[#5c6b7a]">Desk checkout</dt>
+          <dd className="mt-1 text-sm text-[#1a2b3c]">
+            Staff should scan the <span className="font-medium text-[#1a2b3c]">library barcode</span> (on the book, starts with LIB).
+            Internal book ID <span className="font-mono text-xs text-[#5c6b7a]">{book.id}</span> can be used only when
+            copies have no barcodes yet.
+          </dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-[#5c6b7a]">ISBN</dt>

@@ -3,6 +3,8 @@ import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 
 const nav = [
+  { to: '/admin/dashboard', label: 'Dashboard' },
+  { to: '/admin/payments', label: 'Payments' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/permissions', label: 'Permissions' },
   { to: '/admin/system', label: 'System & database' },

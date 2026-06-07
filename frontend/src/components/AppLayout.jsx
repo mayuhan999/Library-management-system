@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { apiFetch } from '@/api/http'
 import { Button } from '@/components/ui/button'
 
 function roleLabel(role) {
@@ -28,6 +30,17 @@ function navClass(isActive) {
 export function AppLayout() {
   const { user, logout } = useAuth()
   const { pathname } = useLocation()
+  const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    if (user?.role !== 'MEMBER') {
+      setUnreadMessages(0)
+      return
+    }
+    apiFetch('/api/reader/messages?unread=1')
+      .then((res) => setUnreadMessages(res.unreadCount || 0))
+      .catch(() => setUnreadMessages(0))
+  }, [user, pathname])
 
   const showCatalogShell =
     user && (pathname.startsWith('/books') || pathname.startsWith('/reader/'))
@@ -40,7 +53,7 @@ export function AppLayout() {
       { to: '/reader/loans', label: 'My loans' },
       { to: '/reader/history', label: 'History' },
       { to: '/reader/holds', label: 'My holds' },
-      { to: '/reader/account', label: 'Account' },
+      { to: '/reader/account', label: 'Status center' },
     ]
   } else if (user?.role === 'LIBRARIAN') {
     sidebarSubtitle = 'Librarian · Catalog'
@@ -49,7 +62,8 @@ export function AppLayout() {
       { to: '/librarian/desk', label: 'Desk checkout' },
       { to: '/librarian/books/new', label: 'Add book' },
       { to: '/librarian/inventory', label: 'Inventory' },
-      { to: '/librarian/holds', label: 'Hold queue' },
+      { to: '/librarian/holds', label: 'Reservations' },
+      { to: '/librarian/reports', label: 'Reports' },
       { to: '/librarian/account', label: 'Account' },
     ]
   } else if (user?.role === 'ADMIN') {
@@ -85,7 +99,14 @@ export function AppLayout() {
             <nav className="flex flex-1 flex-col gap-1 p-2">
               {sidebarNav.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => navClass(isActive)}>
-                  {item.label}
+                  <span className="flex items-center justify-between gap-2">
+                    <span>{item.label}</span>
+                    {item.to === '/reader/account' && unreadMessages > 0 ? (
+                      <span className="rounded-full bg-[#b42318] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {unreadMessages}
+                      </span>
+                    ) : null}
+                  </span>
                 </NavLink>
               ))}
             </nav>
@@ -110,7 +131,7 @@ export function AppLayout() {
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="border-b border-[#e5e8eb] bg-white px-4 py-3 lg:px-8">
               <h1 className="text-base font-semibold text-[#003366]">Library Management System</h1>
-              <p className="mt-0.5 text-xs text-[#5c6b7a]">Release 1 · Catalog & circulation</p>
+              <p className="mt-0.5 text-xs text-[#5c6b7a]">Release 3 · Advanced circulation & admin</p>
             </header>
             <main className="flex-1 overflow-auto px-4 py-6 lg:px-8">
               <Outlet />

@@ -1,9 +1,12 @@
+const path = require("node:path");
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
+const { createUniqueBarcodes } = require("../src/lib/libraryBarcode");
+const { CONFIG_DEFAULTS } = require("../src/lib/configDefaults");
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL,
@@ -214,10 +217,13 @@ const books = [
 async function main() {
   // Reset core business tables for deterministic seed output.
   await prisma.auditLog.deleteMany();
+  await prisma.inAppMessage.deleteMany();
+  await prisma.bookCopyIncident.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.hold.deleteMany();
   await prisma.wishlist.deleteMany();
   await prisma.loan.deleteMany();
+  await prisma.bookCopy.deleteMany();
   await prisma.book.deleteMany();
   await prisma.user.deleteMany();
   await prisma.config.deleteMany();
@@ -258,6 +264,7 @@ async function main() {
     const created = await prisma.book.create({
       data: {
         isbn: book.isbn,
+        barcode: book.isbn.replace(/[-\s]/g, ''),
         title: book.title,
         author: book.author,
         category: book.category,
@@ -267,6 +274,16 @@ async function main() {
         availableCopies,
       },
     });
+
+    const barcodes = await createUniqueBarcodes(prisma, totalCopies);
+    await prisma.bookCopy.createMany({
+      data: barcodes.map((libraryBarcode) => ({
+        bookId: created.id,
+        libraryBarcode,
+        status: "AVAILABLE",
+      })),
+    });
+
     createdBooks.push({ created, shelfOnly, totalCopies });
   }
 
@@ -274,101 +291,49 @@ async function main() {
   for (const entry of createdBooks) {
     if (entry.shelfOnly) continue;
     const { created, totalCopies } = entry;
+    const copies = await prisma.bookCopy.findMany({
+      where: { bookId: created.id, status: "AVAILABLE" },
+      orderBy: { libraryBarcode: "asc" },
+    });
     for (let k = 0; k < totalCopies; k += 1) {
+      const copy = copies[k];
       const borrower = memberUsers[k % memberUsers.length];
-      await prisma.loan.create({
-        data: {
-          userId: borrower.id,
-          bookId: created.id,
-          dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-          status: "BORROWED",
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.bookCopy.update({
+          where: { id: copy.id },
+          data: { status: "ON_LOAN" },
+        });
+        await tx.book.update({
+          where: { id: created.id },
+          data: { availableCopies: { decrement: 1 } },
+        });
+        await tx.loan.create({
+          data: {
+            userId: borrower.id,
+            bookId: created.id,
+            bookCopyId: copy.id,
+            dueAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            status: "BORROWED",
+          },
+        });
       });
     }
   }
 
-  await prisma.config.upsert({
-    where: { key: "FINE_RATE_PER_DAY" },
-    create: {
-      key: "FINE_RATE_PER_DAY",
-      value: "0.50",
-      description: "Fine amount charged per overdue day.",
-      updatedBy: "admin@library.local",
-    },
-    update: {
-      value: "0.50",
-      description: "Fine amount charged per overdue day.",
-      updatedBy: "admin@library.local",
-    },
-  });
-
-  await prisma.config.upsert({
-    where: { key: "LOAN_DAYS" },
-    create: {
-      key: "LOAN_DAYS",
-      value: "14",
-      description: "Default loan period in days for borrows and desk checkout.",
-      updatedBy: "admin@library.local",
-    },
-    update: {
-      value: "14",
-      description: "Default loan period in days for borrows and desk checkout.",
-      updatedBy: "admin@library.local",
-    },
-  });
-
-  await prisma.config.upsert({
-    where: { key: "MIN_PASSWORD_LENGTH" },
-    create: {
-      key: "MIN_PASSWORD_LENGTH",
-      value: "6",
-      description: "Minimum password length for registration and admin-created accounts.",
-      updatedBy: "admin@library.local",
-    },
-    update: {
-      value: "6",
-      description: "Minimum password length for registration and admin-created accounts.",
-      updatedBy: "admin@library.local",
-    },
-  });
-
-  await prisma.config.upsert({
-    where: { key: "MAX_BORROW_BOOKS" },
-    create: {
-      key: "MAX_BORROW_BOOKS",
-      value: "5",
-      description: "Maximum concurrent active loans per reader account.",
-      updatedBy: "admin@library.local",
-    },
-    update: {
-      value: "5",
-      description: "Maximum concurrent active loans per reader account.",
-      updatedBy: "admin@library.local",
-    },
-  });
-
-  await prisma.config.upsert({
-    where: { key: "READER_CARD_ID_PATTERN" },
-    create: {
-      key: "READER_CARD_ID_PATTERN",
-      value: "^[A-Z0-9]{6,12}$",
-      description:
-        "Suggested format for reader library card IDs (regex). Used as policy text; optional future validation.",
-      updatedBy: "admin@library.local",
-    },
-    update: {
-      value: "^[A-Z0-9]{6,12}$",
-      description:
-        "Suggested format for reader library card IDs (regex). Used as policy text; optional future validation.",
-      updatedBy: "admin@library.local",
-    },
-  });
+  for (const row of CONFIG_DEFAULTS) {
+    await prisma.config.upsert({
+      where: { key: row.key },
+      create: { ...row, updatedBy: "admin@library.local" },
+      update: { description: row.description, updatedBy: "admin@library.local" },
+    });
+  }
 
   console.log("Seed completed:");
   console.log("- 8 users (1 admin, 1 librarian, 5 students)");
   console.log("- 20 books across 5 categories, 2–5 copies each (random)");
   console.log("- First 15 books: all copies on shelf; last 5: all copies on loan (unavailable)");
-  console.log("- Config: FINE_RATE_PER_DAY, LOAN_DAYS, MIN_PASSWORD_LENGTH, MAX_BORROW_BOOKS, READER_CARD_ID_PATTERN");
+  console.log("- Config: all defaults incl. REMINDER_DAYS_AHEAD, AUTO_BACKUP_*");
+  console.log("- Next: npm run demo:r3  (R3 acceptance demo data)");
 }
 
 main()

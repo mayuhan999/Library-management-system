@@ -8,8 +8,12 @@ const KEY_LABEL = {
   MIN_PASSWORD_LENGTH: 'Minimum password length',
   MAX_BORROW_BOOKS: 'Max concurrent loans per reader',
   MAX_RENEW_COUNT: 'Max renewals per loan (0 = disabled)',
-  FINE_RATE_PER_DAY: 'Fine per day (reserved)',
+  FINE_RATE_PER_DAY: 'Fine per day (overdue)',
   READER_CARD_ID_PATTERN: 'Reader card ID pattern (regex, policy)',
+  REMINDER_DAYS_AHEAD: 'Due reminder: days ahead (R1.06)',
+  AUTO_BACKUP_ENABLED: 'Auto backup enabled (true/false)',
+  AUTO_BACKUP_INTERVAL_HOURS: 'Auto backup interval (hours)',
+  AUTO_BACKUP_RETENTION_DAYS: 'Backup retention (days)',
 }
 
 export function AdminRulesPage() {
@@ -56,7 +60,10 @@ export function AdminRulesPage() {
     <div className="b-app space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-[#003366]">Loan rules</h1>
-        <p className="mt-1 text-sm text-[#5c6b7a]">Loan length, password policy, and borrowing limits apply to new activity after save.</p>
+        <p className="mt-1 text-sm text-[#5c6b7a]">
+          Loan length, due reminders (R1.06), backup schedule (A1.09), and borrowing limits. Click Save to persist;
+          new keys show with defaults even before first save.
+        </p>
       </div>
 
       <div className="rounded-sm border border-[#e5e8eb] bg-white p-5">
@@ -68,6 +75,9 @@ export function AdminRulesPage() {
                 {KEY_LABEL[row.key] || row.key}
               </label>
               {row.description ? <p className="mb-1 text-xs text-[#5c6b7a]">{row.description}</p> : null}
+              {row.isDefault ? (
+                <p className="mb-1 text-xs text-amber-700">Not saved yet — edit and click Save to write to database.</p>
+              ) : null}
               <input
                 id={`cfg-${row.key}`}
                 value={configDraft[row.key] ?? ''}

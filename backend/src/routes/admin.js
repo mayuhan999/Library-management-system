@@ -3,6 +3,9 @@ const bcrypt = require('bcrypt');
 const { prisma } = require('../lib/prisma');
 const { getMinPasswordLength } = require('../lib/libraryRules');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { listBackups, createBackup, restoreBackup } = require('../lib/databaseBackup');
+const { CONFIG_DEFAULTS } = require('../lib/configDefaults');
+const { getAdminDashboard } = require('../lib/dashboardStats');
 
 const router = express.Router();
 
@@ -10,6 +13,71 @@ router.use(requireAuth);
 router.use(requireRole(['ADMIN']));
 
 const ROLES = new Set(['MEMBER', 'LIBRARIAN', 'ADMIN']);
+
+/** A1.11 — Admin global dashboard. */
+router.get('/dashboard', async (req, res) => {
+  try {
+    const data = await getAdminDashboard();
+    res.json(data);
+  } catch (e) {
+    console.error('GET /admin/dashboard', e);
+    res.status(500).json({
+      error: 'Dashboard unavailable. Run: cd backend && npx prisma migrate deploy',
+      detail: e.message,
+    });
+  }
+});
+
+/** A1.10 — Alipay payment reconciliation ledger. */
+router.get('/payments', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '30'), 10) || 30));
+    const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+
+    const where = {};
+    if (status) where.status = status;
+
+    const [items, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        include: {
+          user: { select: { id: true, email: true, fullName: true } },
+          loan: { include: { book: { select: { title: true, isbn: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.payment.count({ where }),
+    ]);
+
+    const summary = await prisma.payment.groupBy({
+      by: ['status'],
+      _count: { id: true },
+      _sum: { amount: true },
+    });
+
+    res.json({
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit) || 1,
+      summary: summary.map((s) => ({
+        status: s.status,
+        count: s._count.id,
+        amount: parseFloat((s._sum.amount || 0).toFixed(2)),
+      })),
+    });
+  } catch (e) {
+    console.error('GET /admin/payments', e);
+    res.status(500).json({
+      error: 'Payments ledger unavailable. Run: cd backend && npx prisma migrate deploy',
+      detail: e.message,
+    });
+  }
+});
 
 router.get('/users', async (req, res) => {
   const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
@@ -197,7 +265,28 @@ router.post('/users/:id/reset-password', async (req, res) => {
 
 router.get('/config', async (req, res) => {
   const rows = await prisma.config.findMany({ orderBy: { key: 'asc' } });
-  res.json({ items: rows });
+  const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+  const items = CONFIG_DEFAULTS.map((def) => {
+    const saved = byKey[def.key];
+    if (saved) return saved;
+    return {
+      id: `default-${def.key}`,
+      key: def.key,
+      value: def.value,
+      description: def.description,
+      updatedBy: null,
+      createdAt: null,
+      updatedAt: null,
+      isDefault: true,
+    };
+  });
+  for (const row of rows) {
+    if (!CONFIG_DEFAULTS.some((d) => d.key === row.key)) {
+      items.push(row);
+    }
+  }
+  items.sort((a, b) => a.key.localeCompare(b.key));
+  res.json({ items });
 });
 
 router.patch('/config', async (req, res) => {
@@ -303,38 +392,7 @@ router.post('/database-bootstrap', async (req, res) => {
   const actor = await prisma.user.findUnique({ where: { id: req.userId } });
   const updatedBy = actor?.email || req.userId;
 
-  const defaults = [
-    {
-      key: 'LOAN_DAYS',
-      value: '14',
-      description: 'Default loan period in days (online borrow & desk checkout).',
-    },
-    {
-      key: 'MIN_PASSWORD_LENGTH',
-      value: '6',
-      description: 'Minimum password length for registration and admin-created accounts.',
-    },
-    {
-      key: 'MAX_BORROW_BOOKS',
-      value: '5',
-      description: 'Maximum concurrent active loans per reader account.',
-    },
-    {
-      key: 'MAX_RENEW_COUNT',
-      value: '1',
-      description: 'Maximum number of renewals allowed per loan (0 = renewals disabled).',
-    },
-    {
-      key: 'FINE_RATE_PER_DAY',
-      value: '0.50',
-      description: 'Reserved for future overdue fines (Release 2+).',
-    },
-    {
-      key: 'READER_CARD_ID_PATTERN',
-      value: '^[A-Z0-9]{6,12}$',
-      description: 'Suggested reader card ID format (regex, policy text).',
-    },
-  ];
+  const defaults = CONFIG_DEFAULTS;
 
   const items = [];
   for (const row of defaults) {
@@ -357,6 +415,72 @@ router.post('/database-bootstrap', async (req, res) => {
   });
 
   res.json({ ok: true, items });
+});
+
+/** A1.09 — List available backup files. */
+router.get('/database/backups', async (req, res) => {
+  const items = listBackups();
+  res.json({ items });
+});
+
+/** A1.09 — Create manual database backup. */
+router.post('/database/backup', async (req, res) => {
+  try {
+    const result = await createBackup('manual');
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId,
+        action: 'CREATE',
+        entityType: 'DatabaseBackup',
+        entityId: result.filename,
+        details: JSON.stringify({ sizeBytes: result.sizeBytes }),
+      },
+    });
+    res.status(201).json({ ok: true, backup: result });
+  } catch (e) {
+    if (e.message === 'DATABASE_NOT_FOUND') {
+      return res.status(404).json({ error: 'Database file not found' });
+    }
+    if (e.message === 'BACKUP_FAILED') {
+      return res.status(500).json({ error: 'Backup file was not created' });
+    }
+    throw e;
+  }
+});
+
+/** A1.09 — Restore database from a backup file (destructive). */
+router.post('/database/restore', async (req, res) => {
+  const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : '';
+  const confirm = req.body?.confirm === true || req.body?.confirm === 'true';
+
+  if (!filename) {
+    return res.status(400).json({ error: 'filename is required' });
+  }
+  if (!confirm) {
+    return res.status(400).json({ error: 'Set confirm: true to restore (this overwrites the live database)' });
+  }
+
+  try {
+    const result = restoreBackup(filename);
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId,
+        action: 'UPDATE',
+        entityType: 'DatabaseBackup',
+        entityId: filename,
+        details: JSON.stringify({ action: 'RESTORE', dbPath: result.dbPath }),
+      },
+    });
+    res.json({ ok: true, restored: filename });
+  } catch (e) {
+    if (e.message === 'INVALID_FILENAME') {
+      return res.status(400).json({ error: 'Invalid backup filename' });
+    }
+    if (e.message === 'BACKUP_NOT_FOUND') {
+      return res.status(404).json({ error: 'Backup file not found' });
+    }
+    throw e;
+  }
 });
 
 module.exports = router;
